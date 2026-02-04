@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Monitoring Stack Dashboard</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #6b7280;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .header p {
+            color: var(--gray);
+            font-size: 1.2em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card h3 {
+            color: var(--gray);
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .stat-change {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .change-positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+        }
+        
+        .change-negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        
+        .change-neutral {
+            background: rgba(107, 114, 128, 0.1);
+            color: var(--gray);
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .service-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .service-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .service-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5em;
+        }
+        
+        .service-icon.nginx {
+            background: linear-gradient(135deg, #269b4a, #2ecc71);
+            color: white;
+        }
+        
+        .service-icon.postgres {
+            background: linear-gradient(135deg, #336791, #6594bc);
+            color: white;
+        }
+        
+        .service-icon.redis {
+            background: linear-gradient(135deg, #d82c20, #ff4438);
+            color: white;
+        }
+        
+        .service-icon.prometheus {
+            background: linear-gradient(135deg, #e6522c, #ff6b4a);
+            color: white;
+        }
+        
+        .service-icon.grafana {
+            background: linear-gradient(135deg, #f46800, #ff8c42);
+            color: white;
+        }
+        
+        .service-info h4 {
+            font-size: 1.3em;
+            margin-bottom: 5px;
+        }
+        
+        .service-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .status-running {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+        }
+        
+        .status-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+        
+        .status-stopped {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        
+        .service-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--dark);
+        }
+        
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .section-header h2 {
+            color: var(--dark);
+        }
+        
+        .alert-count {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        
+        .count-critical {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        
+        .count-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+        
+        .alert-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+        
+        .alert-severity {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        
+        .severity-critical {
+            background: var(--danger);
+        }
+        
+        .severity-warning {
+            background: var(--warning);
+        }
+        
+        .severity-info {
+            background: var(--secondary);
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .alert-time {
+            font-size: 0.9em;
+            color: var(--gray);
+        }
+        
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .link-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .link-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            color: var(--primary);
+        }
+        
+        .link-icon {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .tech-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .tech-badge {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid,
+            .services-grid,
+            .links-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .service-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Loading states */
+        .loading {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Docker Monitoring Stack</h1>
+            <p>Real-time monitoring and management dashboard for containerized applications</p>
+            
+            <div class="tech-badges">
+                <span class="tech-badge">Docker</span>
+                <span class="tech-badge">Prometheus</span>
+                <span class="tech-badge">Grafana</span>
+                <span class="tech-badge">Traefik</span>
+                <span class="tech-badge">PostgreSQL</span>
+                <span class="tech-badge">Redis</span>
+                <span class="tech-badge">Nginx</span>
+                <span class="tech-badge">Loki</span>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>System Uptime</h3>
+                <div class="stat-value" id="uptime">Loading...</div>
+                <span class="stat-change change-positive" id="uptime-change">+99.9% availability</span>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Active Containers</h3>
+                <div class="stat-value" id="container-count">12</div>
+                <span class="stat-change change-positive" id="container-change">All healthy</span>
+            </div>
+            
+            <div class="stat-card">
+                <h3>CPU Usage</h3>
+                <div class="stat-value" id="cpu-usage">24%</div>
+                <div class="progress-bar">
+                    <div class="progress" style="width: 24%; background: var(--secondary);"></div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Memory Usage</h3>
+                <div class="stat-value" id="memory-usage">2.4/8 GB</div>
+                <div class="progress-bar">
+                    <div class="progress" style="width: 30%; background: var(--secondary);"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon nginx">🌐</div>
+                    <div class="service-info">
+                        <h4>Frontend (Nginx)</h4>
+                        <span class="service-status status-running">Running</span>
+                    </div>
+                </div>
+                <div class="service-metrics">
+                    <div class="metric">
+                        <div class="metric-label">Requests</div>
+                        <div class="metric-value" id="nginx-requests">1.2k</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Response Time</div>
+                        <div class="metric-value" id="nginx-response">45ms</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Errors</div>
+                        <div class="metric-value" id="nginx-errors">0</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Uptime</div>
+                        <div class="metric-value" id="nginx-uptime">7d</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon postgres">🐘</div>
+                    <div class="service-info">
+                        <h4>PostgreSQL</h4>
+                        <span class="service-status status-running">Running</span>
+                    </div>
+                </div>
+                <div class="service-metrics">
+                    <div class="metric">
+                        <div class="metric-label">Connections</div>
+                        <div class="metric-value" id="pg-connections">24/100</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Queries/sec</div>
+                        <div class="metric-value" id="pg-queries">142</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Cache Hit</div>
+                        <div class="metric-value" id="pg-cache">99.8%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Size</div>
+                        <div class="metric-value" id="pg-size">2.4 GB</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon redis">🗃️</div>
+                    <div class="service-info">
+                        <h4>Redis Cache</h4>
+                        <span class="service-status status-running">Running</span>
+                    </div>
+                </div>
+                <div class="service-metrics">
+                    <div class="metric">
+                        <div class="metric-label">Memory Used</div>
+                        <div class="metric-value" id="redis-memory">128 MB</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Ops/sec</div>
+                        <div class="metric-value" id="redis-ops">1.4k</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Hit Rate</div>
+                        <div class="metric-value" id="redis-hitrate">98.5%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Keys</div>
+                        <div class="metric-value" id="redis-keys">4,281</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon prometheus">📊</div>
+                    <div class="service-info">
+                        <h4>Prometheus</h4>
+                        <span class="service-status status-running">Running</span>
+                    </div>
+                </div>
+                <div class="service-metrics">
+                    <div class="metric">
+                        <div class="metric-label">Metrics</div>
+                        <div class="metric-value" id="prom-metrics">42k</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Scrape Interval</div>
+                        <div class="metric-value" id="prom-interval">15s</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Alerts</div>
+                        <div class="metric-value" id="prom-alerts">2</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Retention</div>
+                        <div class="metric-value" id="prom-retention">30d</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="alerts-section">
+            <div class="section-header">
+                <h2>Active Alerts</h2>
+                <span class="alert-count count-warning" id="alert-count">2 Warnings</span>
+            </div>
+            <div class="alert-list" id="alert-list">
+                <div class="alert-item">
+                    <div class="alert-severity severity-warning"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">High memory usage on backend container</div>
+                        <div class="alert-time">5 minutes ago</div>
+                    </div>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-severity severity-warning"></div>
+                    <div class="alert-content">
+                        <div class="alert-title">Database connection pool at 85% capacity</div>
+                        <div class="alert-time">15 minutes ago</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="links-grid">
+            <a href="/grafana" class="link-card" target="_blank">
+                <div class="link-icon">📈</div>
+                <h3>Grafana Dashboards</h3>
+                <p>Advanced metrics and visualization</p>
+            </a>
+            
+            <a href="/prometheus" class="link-card" target="_blank">
+                <div class="link-icon">🔍</div>
+                <h3>Prometheus UI</h3>
+                <p>Raw metrics and alert management</p>
+            </a>
+            
+            <a href="/alertmanager" class="link-card" target="_blank">
+                <div class="link-icon">🚨</div>
+                <h3>Alertmanager</h3>
+                <p>Alert routing and silencing</p>
+            </a>
+            
+            <a href="/api/health" class="link-card">
+                <div class="link-icon">💚</div>
+                <h3>Health Checks</h3>
+                <p>Service health status API</p>
+            </a>
+        </div>
+        
+        <div class="footer">
+            <p>Docker Monitoring Stack v1.0.0 | Last updated: <span id="current-time">Loading...</span></p>
+            <p>Deployed with ❤️ using Infrastructure as Code | Environment: <strong id="environment">production</strong></p>
+        </div>
+    </div>
+    
+    <script>
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleString('en-US', { 
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZoneName: 'short'
+                });
+        }
+        
+        // Simulate live data updates
+        function updateMetrics() {
+            // Simulate random metric changes
+            const metrics = {
+                'cpu-usage': () => Math.floor(Math.random() * 30) + 20,
+                'memory-usage': () => {
+                    const used = (Math.random() * 1) + 2;
+                    return `${used.toFixed(1)}/8 GB`;
+                },
+                'nginx-requests': () => {
+                    const requests = Math.floor(Math.random() * 500) + 1000;
+                    return requests > 1000 ? `${(requests/1000).toFixed(1)}k` : requests;
+                },
+                'nginx-response': () => `${Math.floor(Math.random() * 30) + 30}ms`,
+                'pg-connections': () => {
+                    const current = Math.floor(Math.random() * 20) + 20;
+                    return `${current}/100`;
+                },
+                'pg-queries': () => Math.floor(Math.random() * 100) + 100,
+                'redis-ops': () => {
+                    const ops = Math.floor(Math.random() * 500) + 1000;
+                    return ops > 1000 ? `${(ops/1000).toFixed(1)}k` : ops;
+                }
+            };
+            
+            Object.keys(metrics).forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = metrics[id]();
+                }
+            });
+        }
+        
+        // Fetch real data from API
+        async function fetchRealData() {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('environment').textContent = data.environment || 'production';
+                }
+            } catch (error) {
+                console.log('API fetch failed, using simulated data');
+            }
+        }
+        
+        // Initialize
+        updateTime();
+        updateMetrics();
+        fetchRealData();
+        
+        // Update time every second
+        setInterval(updateTime, 1000);
+        
+        // Update metrics every 10 seconds
+        setInterval(updateMetrics, 10000);
+        
+        // Fetch real data every 30 seconds
+        setInterval(fetchRealData, 30000);
+        
+        // Calculate uptime (simulated)
+        const startTime = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days ago
+        const uptimeElement = document.getElementById('uptime');
+        
+        function updateUptime() {
+            const now = Date.now();
+            const diff = now - startTime;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            uptimeElement.textContent = `${days}d ${hours}h ${minutes}m`;
+        }
+        
+        updateUptime();
+        setInterval(updateUptime, 60000); // Update every minute
+    </script>
+</body>
+</html>
