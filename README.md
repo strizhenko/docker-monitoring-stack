@@ -48,7 +48,10 @@ A complete solution for deploying and monitoring containerized applications with
 - 4GB RAM minimum
 - Linux/macOS/Windows WSL2
 
-### **1. Clone and Setup**
+🏗️ Architecture
+<img width="3620" height="2600" alt="docker-monitoring-stack" src="https://github.com/user-attachments/assets/3f8d64ec-a317-406f-ab5b-20df38bf34d1" />
+
+**1. Clone and Setup**
 ```bash
 git clone https://github.com/strizhenko/docker-monitoring-stack.git
 cd docker-monitoring-stack
@@ -79,10 +82,6 @@ Prometheus: http://localhost:9090
 Alertmanager: http://localhost:9093
 
 Traefik Dashboard: http://localhost:8080
-
-🏗️ Architecture
-/home/olek/Downloads/docker-monitoring-stack.png
-
 
 📁 Project Structure
 text
